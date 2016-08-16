@@ -1,0 +1,78 @@
+<style>
+body {
+  line-height: 1.5;
+  padding: 4em 1em;
+  font-family: "Helvetica", "Arial", sans-serif;
+  margin: 0 auto;
+  max-width: 50em;
+}
+
+.fb-post {
+  padding-top: 1em;
+  padding-bottom: 1em;
+}
+</style>
+<script>
+$ = (x) => document.querySelector(x);
+
+node = (tag, attrs, content) => {
+  var n = document.createElement(tag);
+  for (k in attrs) {
+    var a = document.createAttribute(k);
+    a.value = attrs[k];
+    n.setAttributeNode(a);
+  }
+  n.appendChild(document.createTextNode(content));
+  return n;
+}
+
+div = (content, attrs = {}) => node('div', attrs, content);
+code = (content, attrs = {}) => node('code', attrs, content);
+
+rPost = (content) => {
+  var d = div("", { class: 'fb-post' });
+  d.appendChild(code(content));
+  return d;
+}
+
+handleUserPosts = (userPosts) => {
+  userPosts.data.map((post) => {
+      if (post.message) {
+        $('#posts').appendChild(rPost(post.message));
+      } else if (post.story) {
+        $('#posts').appendChild(rPost(post.story));
+      } else if (post.source) { 
+        $('#posts').appendChild(rPost(post.source));
+      }
+    });
+
+  if (userPosts.paging && userPosts.paging.next) {
+    fetch(userPosts.paging.next).then((r) => { 
+        r.json().then(handleUserPosts)
+      })
+  }
+};
+
+window.fbAsyncInit = function() {
+  FB.init({
+    appId      : '212387395764089',
+    xfbml      : true,
+    version    : 'v2.7'
+  });
+
+  FB.login((loginresp) => {
+      FB.api('/me/posts?fields=status_type,source,message,story,created_time',
+        'get', null,
+        handleUserPosts);
+    }, {scope: 'email,user_posts'});
+};
+
+(function(d, s, id){
+   var js, fjs = d.getElementsByTagName(s)[0];
+   if (d.getElementById(id)) {return;}
+   js = d.createElement(s); js.id = id;
+   js.src = "//connect.facebook.net/en_US/sdk.js";
+   fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));
+</script>
+<div id="posts"></div>
