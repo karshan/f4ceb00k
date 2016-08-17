@@ -11,6 +11,14 @@ body {
   padding-top: 1em;
   padding-bottom: 1em;
 }
+
+#loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: white;
+  background-color: black;
+}
 </style>
 <script>
 $ = (x) => document.querySelector(x);
@@ -24,7 +32,7 @@ node = (tag, attrs, content) => {
   }
   n.appendChild(document.createTextNode(content));
   return n;
-}
+};
 
 div = (content, attrs = {}) => node('div', attrs, content);
 code = (content, attrs = {}) => node('code', attrs, content);
@@ -33,7 +41,13 @@ rPost = (content) => {
   var d = div("", { class: 'fb-post' });
   d.appendChild(code(content));
   return d;
-}
+};
+
+hide = (n) => {
+  var styleAttr = document.createAttribute('style');
+  styleAttr.value = "display: none;";
+  n.setAttributeNode(styleAttr);
+};
 
 handleUserPosts = (userPosts) => {
   userPosts.data.map((post) => {
@@ -50,6 +64,8 @@ handleUserPosts = (userPosts) => {
     fetch(userPosts.paging.next).then((r) => { 
         r.json().then(handleUserPosts)
       })
+  } else {
+    hide($('#loading'));
   }
 };
 
@@ -61,7 +77,7 @@ window.fbAsyncInit = function() {
   });
 
   FB.login((loginresp) => {
-      FB.api('/me/posts?fields=status_type,source,message,story,created_time',
+      FB.api('/me/posts?fields=status_type,source,message,story,created_time&limit=250',
         'get', null,
         handleUserPosts);
     }, {scope: 'email,user_posts'});
@@ -76,3 +92,4 @@ window.fbAsyncInit = function() {
 }(document, 'script', 'facebook-jssdk'));
 </script>
 <div id="posts"></div>
+<span id="loading">Loading...</span>
