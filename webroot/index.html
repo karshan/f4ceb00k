@@ -70,7 +70,11 @@ hide = (n) => {
 youtubeIdSnippetUrl = (id) => 'https://content.googleapis.com/youtube/v3/videos?part=snippet&id=' + id + '&key=AIzaSyDUUHI3jo0a7Ih7w7Ib1OOK8CX5wXWbInY'
 
 addYoutubeTitle = (ytId, title) => {
-  $('[youtube-id="' + ytId + '"]').appendChild(div(title));
+  if (title !== null) {
+    $('[youtube-id="' + ytId + '"]').appendChild(div(title));
+  } else {
+    $('[youtube-id="' + ytId + '"]').appendChild(div('youtube video unavailable :/'));
+  }
 }
 
 handleUserPosts = (userPosts) => {
@@ -85,6 +89,8 @@ handleUserPosts = (userPosts) => {
               r.json().then((ytResponse) => {
                   if (ytResponse.items && ytResponse.items[0]) {
                     addYoutubeTitle(ytId, ytResponse.items[0].snippet.title);
+                  } else {
+                    addYoutubeTitle(ytId, null);
                   }
                 });
             }))(youtubeId);
