@@ -2,7 +2,7 @@
 body {
   line-height: 1.5;
   padding: 4em 1em;
-  font-family: "Helvetica", "Arial", sans-serif;
+  font-family: monospace;
   margin: 0 auto;
   max-width: 50em;
 }
@@ -23,6 +23,17 @@ body {
 <script>
 $ = (x) => document.querySelector(x);
 
+mixin = (a, b) => {
+  var o = {}
+  for (k in a) {
+    o[k] = a[k];
+  }
+  for (k in b) {
+    o[k] = b[k];
+  }
+  return o;
+}
+
 node = (tag, attrs, content) => {
   var n = document.createElement(tag);
   for (k in attrs) {
@@ -36,6 +47,13 @@ node = (tag, attrs, content) => {
 
 div = (content, attrs = {}) => node('div', attrs, content);
 code = (content, attrs = {}) => node('code', attrs, content);
+link = (content, link, attrs = {}) => node('a', mixin(attrs, {href: link}), content);
+
+linkPost = (content, link_, attrs = {}) => {
+  var d = div("", mixin({ class: 'fb-post' }, attrs));
+  d.appendChild(link(content, link_));
+  return d;
+}
 
 rPost = (content) => {
   var d = div("", { class: 'fb-post' });
@@ -49,10 +67,30 @@ hide = (n) => {
   n.setAttributeNode(styleAttr);
 };
 
+youtubeIdSnippetUrl = (id) => 'https://content.googleapis.com/youtube/v3/videos?part=snippet&id=' + id + '&key=AIzaSyDUUHI3jo0a7Ih7w7Ib1OOK8CX5wXWbInY'
+
+addYoutubeTitle = (ytId, title) => {
+  $('[youtube-id="' + ytId + '"]').appendChild(div(title));
+}
+
 handleUserPosts = (userPosts) => {
   userPosts.data.map((post) => {
+      var youtubeReg = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/
       if (post.message) {
-        $('#posts').appendChild(rPost(post.message));
+        var postNode = rPost(post.message);
+        if (youtubeReg.test(post.message)) {
+          var youtubeId = youtubeReg.exec(post.message)[1];
+          postNode = linkPost(post.message, youtubeReg.exec(post.message)[0], {'youtube-id': youtubeId});
+          ((ytId) => fetch(youtubeIdSnippetUrl(ytId)).then((r) => {
+              r.json().then((ytResponse) => {
+                  if (ytResponse.items && ytResponse.items[0]) {
+                    addYoutubeTitle(ytId, ytResponse.items[0].snippet.title);
+                  }
+                });
+            }))(youtubeId);
+        }
+
+        $('#posts').appendChild(postNode);
       } else if (post.story) {
         $('#posts').appendChild(rPost(post.story));
       } else if (post.source) { 
@@ -63,7 +101,7 @@ handleUserPosts = (userPosts) => {
   if (userPosts.paging && userPosts.paging.next) {
     fetch(userPosts.paging.next).then((r) => { 
         r.json().then(handleUserPosts)
-      })
+      });
   } else {
     hide($('#loading'));
   }
