@@ -1,4 +1,8 @@
 <style>
+a {
+  color: #e81c4f;
+}
+
 body {
   line-height: 1.5;
   padding: 4em 1em;
@@ -20,11 +24,8 @@ body {
   background-color: black;
 }
 
-#muzak_link {
-  position: absolute;
-  top: 0;
-  right: 0;
-  font-weight: bold;
+.who {
+  display: none
 }
 </style>
 <script>
@@ -62,8 +63,8 @@ linkPost = (content, link_, attrs = {}) => {
   return d;
 }
 
-rPost = (content) => {
-  var d = div("", { class: 'fb-post' });
+rPost = (content, attrs = {}) => {
+  var d = div("", mixin({ class: 'fb-post' }, attrs));
   d.appendChild(code(content));
   return d;
 };
@@ -78,21 +79,27 @@ youtubeIdSnippetUrl = (id) => 'https://content.googleapis.com/youtube/v3/videos?
 
 addYoutubeTitle = (ytId, title) => {
   if (title !== null) {
-    $('[youtube-id="' + ytId + '"]').appendChild(div(title));
+    $('[youtube-id="' + ytId + '"]').appendChild(div(title, {style: 'font-weight: bold;'}));
   } else {
-    $('[youtube-id="' + ytId + '"]').appendChild(div('youtube video unavailable :/'));
+    $('[youtube-id="' + ytId + '"]').appendChild(div('youtube video unavailable :/', {'class': 'ytunavail'}));
   }
+}
+
+addWho = (whoId, c) => {
+  $('[who="' + whoId + '"]').appendChild(div(c, {'class': 'who'}));
+  $('[who="' + whoId + '"]').appendChild(div('creator: ' + JSON.parse(c).from.name));
+  $('[who="' + whoId + '"]').appendChild(div('time: ' + JSON.parse(c).created_time));
+  $('[who="' + whoId + '"]').appendChild(link('post-link', JSON.parse(c).permalink_url));
 }
 
 handleUserPosts = (userPosts) => {
   userPosts.data.map((post) => {
       var youtubeReg = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/
-          var postNode = div('', { class: 'fb-post' });
-      if (post.message) {
-        var p = code(post.message);
-        if (youtubeReg.test(post.message)) {
-          var youtubeId = youtubeReg.exec(post.message)[1];
-          p = linkPost(post.message, youtubeReg.exec(post.message)[0], {'youtube-id': youtubeId});
+      if (post.link) {
+        var postNode = rPost(post.link, {'who': post.id});
+        if (youtubeReg.test(post.link)) {
+          var youtubeId = youtubeReg.exec(post.link)[1];
+          postNode = linkPost(post.message || post.link, youtubeReg.exec(post.link)[0], {'youtube-id': youtubeId, 'who': post.id});
           ((ytId) => fetch(youtubeIdSnippetUrl(ytId)).then((r) => {
               r.json().then((ytResponse) => {
                   if (ytResponse.items && ytResponse.items[0]) {
@@ -103,29 +110,16 @@ handleUserPosts = (userPosts) => {
                 });
             }))(youtubeId);
         }
-
-        postNode.appendChild(p);
+        ((postId) => FB.api(postId + '?fields=created_time,from,permalink_url',
+            'get', null,((r) => {
+            addWho(postId, JSON.stringify(r));
+        })))(post.id)
+        $('#posts').appendChild(postNode);
       }
-      if (post.story) {
-        var d = div('');
-        d.appendChild(code(post.story));
-        postNode.appendChild(d);
-      }
-      if (post.source) {
-        var d = div('');
-        d.appendChild(code(post.source));
-        postNode.appendChild(d);
-      }
-      if (post.link) {
-        var d = div('');
-        d.appendChild(link('link', post.link));
-        postNode.appendChild(d);
-      }
-      $('#posts').appendChild(postNode);
     });
 
   if (userPosts.paging && userPosts.paging.next) {
-    fetch(userPosts.paging.next).then((r) => {
+    fetch(userPosts.paging.next).then((r) => { 
         r.json().then(handleUserPosts)
       });
   } else {
@@ -141,7 +135,7 @@ window.fbAsyncInit = function() {
   });
 
   FB.login((loginresp) => {
-      FB.api('/me/posts?fields=status_type,source,message,story,created_time,link&limit=250',
+      FB.api('/410674089047263/feed?fields=id,message,link', // /me/posts?fields=status_type,source,message,story,created_time&limit=250',
         'get', null,
         handleUserPosts);
     }, {scope: 'email,user_posts'});
@@ -155,6 +149,18 @@ window.fbAsyncInit = function() {
    fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
 </script>
-<div id="muzak_link"><a target=_blank href="/muzak.html">Electronic Chill / Party Muzaacs</a></div>
+<pre>
+var xs = $('#posts').children;
+for (var i = 0; i < xs.length; i++) {
+    var o = JSON.parse(xs[i].querySelector('.who').innerText)
+    if (o.from.name != "Siddharth Sharma") {
+        hide(xs[i]);
+    }
+    if (xs[i].attributes['youtube-id'] && !xs[i].querySelector('.ytunavail')) {
+        hide(xs[i]);
+    }
+}
+</pre>
+
 <div id="posts"></div>
 <span id="loading">Loading...</span>
